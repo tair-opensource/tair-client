@@ -261,6 +261,8 @@ void TcpServer::handleNewConnection(socket_t sockfd, const std::string &local_ip
     conn->setWriteCompleteCallback(write_complete_callback_);
     conn->setBeforeReadEventCallback(before_read_event_callback_);
     conn->setBeforeWriteEventCallback(before_write_event_callback_);
+    conn->setAfterReadEventCallback(after_read_event_callback_);
+    conn->setAfterWriteEventCallback(after_write_event_callback_);
     conn->setHighWaterMarkCallback(high_water_mark_callback_, high_water_mark_);
     conn->setCloseCallback([this](const TcpConnectionPtr &conn) {
         removeConnection(conn);

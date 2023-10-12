@@ -164,6 +164,10 @@ void TcpConnection::sendInLoop(const void *data, size_t len) {
         LOG_WARN("TcpConnection disconnected, give up writing");
         return;
     }
+    auto self = shared_from_this();
+    if (before_write_event_callback_ && !before_write_event_callback_(self)) {
+        return;
+    }
     ssize_t nwritten = 0;
     size_t remaining = len;
 
@@ -172,9 +176,12 @@ void TcpConnection::sendInLoop(const void *data, size_t len) {
         nwritten = sockets::writeToSocket(channel_->fd(), static_cast<const char *>(data), len);
         if (nwritten >= 0) {
             NetworkStat::addNetOutputBytes(nwritten);
+            if (after_write_event_callback_) {
+                after_write_event_callback_(self, nwritten);
+            }
             remaining = len - nwritten;
             if (remaining == 0 && write_complete_callback_) {
-                write_complete_callback_(shared_from_this());
+                write_complete_callback_(self);
             }
         } else {
             nwritten = 0;
@@ -194,7 +201,7 @@ void TcpConnection::sendInLoop(const void *data, size_t len) {
         if (current_size >= high_water_mark_ && old_len < high_water_mark_) {
             LOG_TRACE("Connection high water, current size: {}", current_size);
             if (high_water_mark_callback_) {
-                high_water_mark_callback_(shared_from_this(), old_len + remaining);
+                high_water_mark_callback_(self, old_len + remaining);
             }
         }
         output_buffer_.append((char *)data + nwritten, remaining);
@@ -206,9 +213,13 @@ void TcpConnection::sendInLoop(const void *data, size_t len) {
 
 void TcpConnection::sendOutputBuffer() {
     runtimeAssert(loop_->isInLoopThread());
+    auto self = shared_from_this();
     if (!output_buffer_.empty() && isConnected()) {
         handleWrite();
         if (!output_buffer_.empty() && isConnected()) {
+            if (before_write_event_callback_ && !before_write_event_callback_(self)) {
+                return;
+            }
             channel_->enableWriteEvent();
         }
     }
@@ -277,7 +288,8 @@ void TcpConnection::attachToNewLoop(EventLoop *new_loop) {
 
 void TcpConnection::handleRead() {
     runtimeAssert(loop_->isInLoopThread());
-    if (before_read_event_callback_ && !before_read_event_callback_(shared_from_this())) {
+    auto self = shared_from_this();
+    if (before_read_event_callback_ && !before_read_event_callback_(self)) {
         return;
     }
     int saved_errno = 0;
@@ -287,8 +299,11 @@ void TcpConnection::handleRead() {
     ssize_t nread = input_buffer_.readFromFd(channel_->fd(), &saved_errno);
     if (nread > 0) {
         NetworkStat::addNetInputBytes(nread);
+        if (after_read_event_callback_) {
+            after_read_event_callback_(self, nread);
+        }
         if (message_callback_) {
-            message_callback_(shared_from_this(), &input_buffer_);
+            message_callback_(self, &input_buffer_);
         } else {
             input_buffer_.reset();
         }
@@ -306,20 +321,24 @@ void TcpConnection::handleRead() {
 
 void TcpConnection::handleWrite() {
     runtimeAssert(loop_->isInLoopThread());
-    if (before_write_event_callback_ && !before_write_event_callback_(shared_from_this())) {
+    auto self = shared_from_this();
+    if (before_write_event_callback_ && !before_write_event_callback_(self)) {
         return;
     }
     ssize_t nwritten = sockets::writeToSocket(fd_, output_buffer_.data(), output_buffer_.length());
     if (nwritten > 0) {
         NetworkStat::addNetOutputBytes(nwritten);
         output_buffer_.skip(nwritten);
+        if (after_write_event_callback_) {
+            after_write_event_callback_(self, nwritten);
+        }
         if (output_buffer_.empty()) {
             if (output_buffer_.capacity() > EMPTY_BUFFER_MAX_CAPACITY) {
                 output_buffer_.reinit();
             }
             channel_->disableWriteEvent();
             if (write_complete_callback_) {
-                write_complete_callback_(shared_from_this());
+                write_complete_callback_(self);
             }
         }
     } else {

@@ -176,6 +176,14 @@ public:
         before_write_event_callback_ = callback;
     }
 
+    void setAfterReadEventCallback(const AfterReadEventCallback &callback) {
+        after_read_event_callback_ = callback;
+    }
+
+    void setAfterWriteEventCallback(const AfterWriteEventCallback &callback) {
+        after_write_event_callback_ = callback;
+    }
+
     void setWriteCompleteCallback(const WriteCompleteCallback &callback) {
         write_complete_callback_ = callback;
     }
@@ -269,6 +277,8 @@ protected:
     MessageCallback message_callback_;
     BeforeReadEventCallback before_read_event_callback_;
     BeforeWriteEventCallback before_write_event_callback_;
+    AfterReadEventCallback after_read_event_callback_;
+    AfterWriteEventCallback after_write_event_callback_;
     WriteCompleteCallback write_complete_callback_;
     HighWaterMarkCallback high_water_mark_callback_;
     CloseCallback close_callback_;
