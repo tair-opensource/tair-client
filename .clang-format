@@ -1,0 +1,45 @@
+# We'll use defaults from the Google style, but with 4 columns indentation.
+BasedOnStyle: Google
+Language: Cpp
+
+UseTab: Never
+IndentWidth: 4
+
+# public, private, protect
+AccessModifierOffset: -4
+
+# Force pointers to the type for C++.
+DerivePointerAlignment: false
+PointerAlignment: Right
+
+AllowShortCaseLabelsOnASingleLine: true
+AlignConsecutiveMacros: Consecutive
+AlwaysBreakBeforeMultilineStrings: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakBeforeBinaryOperators: All
+ColumnLimit: 0
+PackConstructorInitializers: BinPack
+SpacesBeforeTrailingComments: 1
+SpaceBeforeCpp11BracedList: true
+SortUsingDeclarations: false
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex: '^"(common)/'
+    Priority: 0
+  - Regex: '^"(filesystem)/'
+    Priority: 1
+  - Regex: '^"(network)/'
+    Priority: 2
+  - Regex: '^"(protocol)/'
+    Priority: 3
+  - Regex: '^"(engine)/'
+    Priority: 4
+  - Regex: '^"(client)/'
+    Priority: 5
+  - Regex: '^"(replicator)/'
+    Priority: 6
+  - Regex: '^"(server)/'
+    Priority: 7
