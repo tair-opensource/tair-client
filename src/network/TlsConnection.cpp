@@ -76,10 +76,7 @@ void TlsConnection::attachedToLoop(EventLoop *loop) {
 void TlsConnection::handleRead() {
     runtimeAssert(loop_->isInLoopThread());
     runtimeAssert(ssl_status_ != kNone);
-    if (before_read_event_callback_ && !before_read_event_callback_(shared_from_this())) {
-        return;
-    }
-    std::shared_ptr<TcpConnection> _ = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
+    auto _ = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
 
     if (ssl_status_ == kAccepting) {
         sslAccept();
@@ -101,10 +98,7 @@ void TlsConnection::handleRead() {
 void TlsConnection::handleWrite() {
     runtimeAssert(loop_->isInLoopThread());
     runtimeAssert(ssl_status_ != kNone);
-    if (before_write_event_callback_ && !before_write_event_callback_(shared_from_this())) {
-        return;
-    }
-    std::shared_ptr<TcpConnection> _ = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
+    auto _ = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
 
     if (ssl_status_ == kAccepting) {
         sslAccept();
@@ -195,8 +189,11 @@ void TlsConnection::sslConnect() {
 }
 
 void TlsConnection::sslRead() {
-    std::shared_ptr<TcpConnection> _ = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
+    auto self = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
 
+    if (before_read_event_callback_ && !before_read_event_callback_(self)) {
+        return;
+    }
     ERR_clear_error();
     input_buffer_.ensureWritableBytes(PROTO_IOBUF_LEN);
     int ret = SSL_read(ssl_, input_buffer_.writeBegin(), PROTO_IOBUF_LEN);
@@ -205,10 +202,10 @@ void TlsConnection::sslRead() {
         // check ssl buffer
         if (!has_pending_read_in_loop_ && SSL_pending(ssl_)) {
             // loop_ will holds the conn, until this callback run in loop.
-            auto expected_cb = [conn = shared_from_this()]() {
+            auto expected_cb = [conn = self]() {
                 return conn->loop();
             };
-            loop_->queueInLoopMaybeRedir(expected_cb, [that = std::dynamic_pointer_cast<TlsConnection>(shared_from_this())](EventLoop *) {
+            loop_->queueInLoopMaybeRedir(expected_cb, [that = std::dynamic_pointer_cast<TlsConnection>(self)](EventLoop *) {
                 that->has_pending_read_in_loop_ = false;
                 that->handleRead();
             });
@@ -216,9 +213,12 @@ void TlsConnection::sslRead() {
         }
         input_buffer_.incrWriteIndex(nread);
         NetworkStat::addNetInputBytes(nread);
+        if (after_read_event_callback_) {
+            after_read_event_callback_(self, nread);
+        }
         // call onMessage
         if (message_callback_) {
-            message_callback_(shared_from_this(), &input_buffer_);
+            message_callback_(self, &input_buffer_);
         } else {
             input_buffer_.reset();
         }
@@ -231,9 +231,12 @@ void TlsConnection::sslRead() {
 }
 
 void TlsConnection::sslWrite() {
-    std::shared_ptr<TcpConnection> _ = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
+    auto self = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
 
-    if (output_buffer_.length() == 0) {
+    if (before_write_event_callback_ && !before_write_event_callback_(self)) {
+        return;
+    }
+    if (output_buffer_.empty()) {
         if (!ssl_read_want_write_) { // Both sslWrite() and sslRead() do not need write event to fire.
             channel_->disableWriteEvent();
         }
@@ -243,14 +246,18 @@ void TlsConnection::sslWrite() {
     ERR_clear_error();
     int ret = SSL_write(ssl_, output_buffer_.data(), (int)output_buffer_.length());
     if (ret > 0) {
-        NetworkStat::addNetOutputBytes(ret);
-        output_buffer_.skip(ret);
+        int nwritten = ret;
+        NetworkStat::addNetOutputBytes(nwritten);
+        output_buffer_.skip(nwritten);
+        if (after_write_event_callback_) {
+            after_write_event_callback_(self, nwritten);
+        }
         if (output_buffer_.empty()) {
             if (!ssl_read_want_write_) { // Both sslWrite() and sslRead() do not need write event to fire.
                 channel_->disableWriteEvent();
             }
             if (write_complete_callback_) {
-                write_complete_callback_(shared_from_this());
+                write_complete_callback_(self);
             }
         }
     } else {
@@ -262,7 +269,7 @@ void TlsConnection::sslWrite() {
 }
 
 void TlsConnection::sendInLoop(const void *data, size_t len) {
-    std::shared_ptr<TcpConnection> _ = shared_from_this(); // holds shared_ptr, avoid being destroyed in the callback function.
+    auto self = shared_from_this(); // Holds shared_ptr, avoid being destroyed in the callback function.
 
     if (len == 0) return;                                // should not call SSL_write() with num=0, it will return an error.
     if (ssl_status_ == kDisconnected) return;            // conn may be closed.
@@ -276,10 +283,13 @@ void TlsConnection::sendInLoop(const void *data, size_t len) {
         int ret = SSL_write(ssl_, static_cast<const char *>(data), (int)len);
         if (ret > 0) {
             nwritten = ret;
+            if (after_write_event_callback_) {
+                after_write_event_callback_(self, nwritten);
+            }
             NetworkStat::addNetOutputBytes(nwritten);
             remaining = len - nwritten;
             if (remaining == 0 && write_complete_callback_) {
-                write_complete_callback_(shared_from_this());
+                write_complete_callback_(self);
             }
         } else {
             int ssl_err = sslError(ret);
@@ -295,7 +305,7 @@ void TlsConnection::sendInLoop(const void *data, size_t len) {
         if (current_size >= high_water_mark_ && old_len < high_water_mark_) {
             LOG_TRACE("Connection high water, current size: {}", current_size);
             if (high_water_mark_callback_) {
-                high_water_mark_callback_(shared_from_this(), old_len + remaining);
+                high_water_mark_callback_(self, old_len + remaining);
             }
         }
         output_buffer_.append((char *)data + nwritten, remaining);
