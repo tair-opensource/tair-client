@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include <mutex>
 #include "common/StringUtil.hpp"
 
 #include "fmt/format.h"
@@ -29,22 +30,19 @@ namespace tair::common {
 
 class DateTime {
 public:
-    static inline std::string getLocalDateTime(const char *time_fmt, struct tm *tm = nullptr) {
-        char time_buf[128] = {0};
-        time_t now = ::time(nullptr);
-        struct tm now_tm {};
-        ::localtime_r(&now, &now_tm);
-        ::strftime(time_buf, sizeof(time_buf), time_fmt, &now_tm);
-        if (tm) {
-            *tm = now_tm;
-        }
-        return std::string(time_buf);
-    }
 
     static inline std::string getDateTime(const char *time_fmt, time_t time) {
+        static std::mutex mutex;
+        static std::once_flag once_flag;
+        std::call_once(once_flag, []() {
+            pthread_atfork([]() { mutex.lock(); }, []() { mutex.unlock(); }, []() { mutex.unlock(); });
+        });
         char time_buf[128] = {0};
         struct tm now_tm {};
+        {
+            std::unique_lock<std::mutex> lock(mutex);
         ::localtime_r(&time, &now_tm);
+        }
         ::strftime(time_buf, sizeof(time_buf), time_fmt, &now_tm);
         return std::string(time_buf);
     }

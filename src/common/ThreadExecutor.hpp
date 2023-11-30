@@ -44,8 +44,8 @@ public:
     typedef std::function<void()> Task;
 
 public:
-    explicit ThreadExecutor(size_t capacity, std::string name = "")
-        : capacity_(capacity), name_(std::move(name)) {}
+    explicit ThreadExecutor(size_t capacity, std::string name = "", bool allow_busy_loop = false)
+        : capacity_(capacity), name_(std::move(name)), allow_busy_loop_(allow_busy_loop) {}
     ~ThreadExecutor();
 
     void setInitCallback(const ThreadExecutorCallback &callback) {
@@ -122,6 +122,8 @@ private:
     Condition not_empty_cond_;
     std::deque<Task> queue_ GUARDED_BY(mutex_);
     const size_t capacity_ = 0;
+    const std::string name_;
+    const bool allow_busy_loop_ = false;
 
     bool need_notify_ GUARDED_BY(mutex_) = true;
     std::unique_ptr<std::thread> thread_;
@@ -132,8 +134,6 @@ private:
     ThreadExecutorCallback init_callback_;
     ThreadExecutorCallback after_task_callback_;
     ThreadExecutorCallback cron_callback_;
-
-    std::string name_;
 };
 
 } // namespace tair::common

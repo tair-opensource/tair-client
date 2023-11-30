@@ -153,7 +153,6 @@ include_directories(${PROJECT_SOURCE_DIR}/deps/jemalloc/include)
 include_directories(${PROJECT_SOURCE_DIR}/deps/openssl/include)
 include_directories(${PROJECT_SOURCE_DIR}/deps/cpp-linenoise)
 
-
 add_subdirectory(src)
 add_subdirectory(examples)
 

@@ -30,6 +30,7 @@ ThreadExecutorPool::ThreadExecutorPool(int executor_num, size_t capacity_per_exe
     capacity_per_executor_ = capacity_per_executor;
     runtimeAssert(executor_num_ >= 0);
     name_ = "th-" + name;
+    executors_.resize(executor_num);
 }
 
 ThreadExecutorPool::~ThreadExecutorPool() {
@@ -39,7 +40,6 @@ ThreadExecutorPool::~ThreadExecutorPool() {
 void ThreadExecutorPool::start() {
     if (stopped_) {
         LOG_DEBUG("ThreadExecutorPool start, executor_num={}, name: {}", executor_num_, name_);
-        runtimeAssert(executors_.empty());
         stopped_ = false;
         executors_.reserve(executor_num_);
         for (int i = 0; i < executor_num_; ++i) {
@@ -49,7 +49,7 @@ void ThreadExecutorPool::start() {
             executor->setAfterTaskCallback(after_task_callback_);
             executor->setCronCallback(cron_callback_, cron_time_ms_);
             executor->start();
-            executors_.emplace_back(std::move(executor));
+            executors_[i] = std::move(executor);
         }
     }
 }
@@ -57,11 +57,10 @@ void ThreadExecutorPool::start() {
 void ThreadExecutorPool::stop() {
     if (!stopped_) {
         LOG_DEBUG("ThreadExecutorPool stop, executor_num={}, name: {}", executor_num_, name_);
-        stopped_ = true;
         for (auto &executor : executors_) {
             executor->stop();
         }
-        executors_.clear();
+        stopped_ = true;
     }
 }
 

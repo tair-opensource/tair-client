@@ -69,7 +69,7 @@ EventLoop::~EventLoop() {
     {
         LockGuard lock(mutex_);
         if (!pending_functors_.empty()) {
-            LOG_WARN("pending_functors_ size is {}, some callback give up", pending_functors_.size());
+            LOG_DEBUG("pending_functors_ size is {}, some callback give up", pending_functors_.size());
             pending_functors_.clear();
         }
     }
@@ -84,7 +84,7 @@ std::string EventLoop::getBackendName() {
 }
 
 void EventLoop::run() {
-    LOG_DEBUG("loop name: {}, tid: {}, run in thread: {}", name_, tid_, std::this_thread::get_id());
+    LOG_DEBUG("loop name: {}, addr: {}, tid: {}, run in thread: {}", name_, (void *)this, tid_, std::this_thread::get_id());
     runtimeAssert(local_self_loop == this);
     runtimeAssert(isInLoopThread() && !isRunning());
     if (!pending_watcher_->start()) {
@@ -116,12 +116,14 @@ void EventLoop::run() {
     } else if (rc == -1) {
         LOG_ERROR("event_base_dispatch errno: {} -> {}", errno, SystemUtil::errnoToString(errno));
     }
+    LOG_DEBUG("EventLoop do pending task before loop exit, tid: {}", std::this_thread::get_id());
+    doPendingFunctors();
     LOG_DEBUG("EventLoop stopped, tid: {}", std::this_thread::get_id());
 }
 
 void EventLoop::stop() {
     if (!stopped_) {
-        LOG_DEBUG("loop will stop, name: {}, tid: {}, stop in thread: {}", name_, tid_, std::this_thread::get_id());
+        LOG_DEBUG("loop will stop, name: {}, addr: {}, tid: {}, stop in thread: {}", name_, (void *)this, tid_, std::this_thread::get_id());
         stopped_ = true;
         if (isInLoopThread()) {
             stopInLoop();
@@ -159,14 +161,14 @@ void EventLoop::doPendingFunctors() {
         if (expected_cb) {
             auto expected_loop = expected_cb();
             // expected_cb return null, recheck in next loop
-            if (!expected_cb) {
+            if (!expected_loop) {
                 next_loop_functors.emplace_back(std::make_pair(expected_cb, task_cb));
                 LOG_TRACE("expected loop is NULL, recheck it in next loop");
                 continue;
             }
             // expected_loop not me, redir it
             else if (expected_loop != this) {
-                LOG_TRACE("expected loop is not me [{} vs {}], redir it", (void *)expected_loop, (void *)this);
+                LOG_INFO("expected loop({}) is not me({}), redir it", expected_loop->getName(), name_);
                 expected_loop->queueInLoopMaybeRedir(expected_cb, task_cb);
                 continue;
             }
@@ -176,6 +178,9 @@ void EventLoop::doPendingFunctors() {
     {
         LockGuard lock(mutex_);
         do_pending_ = false;
+    }
+    if (stopped_) {
+        return;
     }
     for (auto &[expected_cb, task_cb] : next_loop_functors) {
         queueInLoopMaybeRedir(expected_cb, task_cb);

@@ -28,7 +28,11 @@
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
 
+std::atomic<int> tair_runtime_assert_enabled = 1;
 void _runtimeAssert(const char *estr, const char *file, int line) {
+    if (!tair_runtime_assert_enabled) {
+        return;
+    }
     LOG_ERROR("=== TAIR BUG REPORT START ===");
     LOG_ERROR("------------------------------------------------");
     LOG_ERROR("ASSERTION FAILED: {}:{} '{}' is not true", file, line, estr);
@@ -40,6 +44,9 @@ void _runtimeAssert(const char *estr, const char *file, int line) {
 }
 
 void _runtimePanic(const char *file, int line, const char *msg, ...) {
+    if (!tair_runtime_assert_enabled) {
+        return;
+    }
     va_list ap;
     va_start(ap, msg);
     char fmtmsg[256];

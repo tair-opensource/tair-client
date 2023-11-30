@@ -117,7 +117,7 @@ protected:
     // Tcp client resource
     CodecPtr codec_;
     TcpClientPtr tcp_client_;
-    int64_t reconnect_timer_id_;
+    int64_t reconnect_timer_id_ = -1;
     int64_t last_send_req_time_ms_ = 0;
     int64_t last_recv_resp_time_ms_ = 0;
     std::unique_ptr<EventLoopThread> loop_thread_;

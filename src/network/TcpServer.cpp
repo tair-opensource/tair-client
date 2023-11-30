@@ -186,7 +186,7 @@ bool TcpServer::removeListenIpPort(const std::string &ip_port) {
         }
     }
     listen_ip_ports_.erase(ip_port);
-    return false;
+    return true;
 }
 
 void TcpServer::stopThreadPool() {

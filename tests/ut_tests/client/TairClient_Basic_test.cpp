@@ -296,6 +296,12 @@ TEST_F(StandAloneTest, RECONNECT) {
     });
     l1.wait();
 
+    CountDownLatch l2;
+    client->sendCommand({"debug", "sleep", "5"}, [&l2](auto *, auto &, const PacketPtr &resp) {
+        ASSERT_TRUE(resp == nullptr);
+        l2.countDown();
+    });
+    l2.wait();
     int count = 0;
     while (!client->isConnected() && ++count < 2000) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));

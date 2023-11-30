@@ -167,8 +167,8 @@ TEST_F(StandAloneTest, SETPARAMS) {
 TEST_F(StandAloneTest, INCRBYFLOAT) {
     auto wrapper = StandAloneTest::client->getFutureWrapper();
     ASSERT_EQ("OK", wrapper.set("mykey", "10.50").get().getValue());
-    ASSERT_DOUBLE_EQ(10.6, std::stod(wrapper.incrbyfloat("mykey", 0.1).get().getValue()));
-    ASSERT_DOUBLE_EQ(5.6, std::stod(wrapper.incrbyfloat("mykey", -5).get().getValue()));
+    ASSERT_EQ("10.6", wrapper.incrbyfloat("mykey", 0.1).get().getValue());
+    ASSERT_EQ("5.6", wrapper.incrbyfloat("mykey", -5).get().getValue());
     ASSERT_EQ("OK", wrapper.set("mykey", "5.0e3").get().getValue());
     ASSERT_EQ("5200", wrapper.incrbyfloat("mykey", 2.0e2).get().getValue());
 }

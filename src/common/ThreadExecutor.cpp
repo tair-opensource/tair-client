@@ -21,6 +21,22 @@
  */
 #include "common/ThreadExecutor.hpp"
 
+#if defined(__x86_64__)
+#include <immintrin.h>
+static inline void _pause() {
+    _mm_pause();
+}
+#elif defined(__aarch64__)
+#include <arm_acle.h>
+static inline void _pause() {
+    __asm__ __volatile__("yield;"
+                         :
+                         :
+                         : "memory");
+}
+#else
+#error "Unsupported architecture"
+#endif
 #include "common/Logger.hpp"
 #include "common/SystemUtil.hpp"
 
@@ -66,8 +82,16 @@ void ThreadExecutor::threadFunc() {
     }
 
     std::deque<Task> tmp_queue;
+    bool skip_next_busy_loop = true;
     while (!stopped_) {
-        tmp_queue.clear();
+        constexpr size_t MAX_PAUSE_COUNT = 1000;
+        size_t busy_pause_count = 0;
+        while (allow_busy_loop_ && !skip_next_busy_loop && !stopped_) {
+            if (queueSize() != 0 || ++busy_pause_count > MAX_PAUSE_COUNT) {
+                break;
+            }
+            _pause();
+        }
         {
             UniqueLock lock(mutex_);
             if (queue_.empty()) {
@@ -84,9 +108,15 @@ void ThreadExecutor::threadFunc() {
             task();
             cronCallbackCheck();
         }
-        if (!tmp_queue.empty() && after_task_callback_) {
+        if (!tmp_queue.empty()) {
+            if (after_task_callback_) {
             after_task_callback_(this);
             cronCallbackCheck();
+            }
+            tmp_queue.clear();
+            skip_next_busy_loop = false;
+        } else {
+            skip_next_busy_loop = true;
         }
     }
     LOG_DEBUG("ThreadExecutor exit, name: {}", thread_name);

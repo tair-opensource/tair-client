@@ -35,6 +35,7 @@ using tair::client::TairClient;
 using tair::client::TairURI;
 
 extern std::string STANDALONE_ADDR;
+constexpr static bool use_external_server = false;
 
 class StandAloneTest : public ::testing::Test {
 protected:

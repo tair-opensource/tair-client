@@ -14,6 +14,7 @@ set(SOURCE_FILES_COMMON_UNIT_TEST
     common/KeyHash_test.cpp
     common/MathUtil_test.cpp
     common/LatencyMetric_test.cpp
+    common/Utils_test.cpp
     common/Singleton_test.cpp
     common/ThreadLocal_test.cpp
     common/ThreadLocalSingleton_test.cpp

@@ -100,4 +100,24 @@ std::string SlotsBitset::toString() const {
     return str;
 }
 
+std::vector<std::pair<uint16_t, uint16_t>> SlotsBitset::toRanges() const {
+    std::vector<std::pair<uint16_t, uint16_t>> result;
+    int start = -1;
+    for (int i = 0; i < KeyHash::SLOTS_NUM; i++) {
+        if (bitset_[i] && start == -1) {
+            start = i;
+            result.emplace_back(i, 0);
+        }
+        if (!bitset_[i]) {
+            if (start != -1) {
+                result.back().second = i - 1;
+            }
+            start = -1;
+        }
+        if (bitset_[i] && i == KeyHash::SLOTS_NUM - 1) {
+            result.back().second = i;
+        }
+    }
+    return result;
+}
 } // namespace tair::common

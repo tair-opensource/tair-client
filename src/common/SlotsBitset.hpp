@@ -94,6 +94,7 @@ public:
     bool loadFromString(const std::string &slots);
     std::string toString() const;
 
+    std::vector<std::pair<uint16_t, uint16_t>> toRanges() const;
 private:
     std::bitset<KeyHash::SLOTS_NUM> bitset_;
 };

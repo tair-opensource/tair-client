@@ -72,8 +72,8 @@ TEST_F(StandAloneTest, HINCRBYCOMMAND) {
 TEST_F(StandAloneTest, HINCRBYFLOATCOMMAND) {
     auto wrapper = StandAloneTest::client->getFutureWrapper();
     ASSERT_EQ(1, wrapper.hset("myhash", "field", "10.50").get().getValue());
-    ASSERT_DOUBLE_EQ(10.6, std::stod(wrapper.hincrbyfloat("myhash", "field", 0.1).get().getValue()));
-    ASSERT_DOUBLE_EQ(5.6, std::stod(wrapper.hincrbyfloat("myhash", "field", -5).get().getValue()));
+    ASSERT_EQ("10.6", wrapper.hincrbyfloat("myhash", "field", 0.1).get().getValue());
+    ASSERT_EQ("5.6", wrapper.hincrbyfloat("myhash", "field", -5).get().getValue());
     ASSERT_EQ(0, wrapper.hset("myhash", "field", "5.0e3").get().getValue());
     ASSERT_EQ("5200", wrapper.hincrbyfloat("myhash", "field", 2.0e2).get().getValue());
 }

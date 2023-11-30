@@ -52,7 +52,6 @@ TairBaseClient::TairBaseClient(EventLoop *loop) {
 }
 
 TairBaseClient::~TairBaseClient() {
-    assertNotInCallbackContext();
     disconnect();
     if (loop_thread_) {
         loop_thread_->stop();
@@ -186,6 +185,7 @@ void TairBaseClient::assertNotInCallbackContext() {
 }
 
 void TairBaseClient::clientCron() {
+    runtimeAssert(reconnect_timer_id_ > 0);
     int64_t now = ClockTime::intervalMs();
     if (last_send_req_time_ms_ >= last_recv_resp_time_ms_ && now - last_send_req_time_ms_ >= reconnect_interval_ms_) {
         LOG_INFO("TairClient has not been active for a long time and will reconnect, now: {}, recv: {}, send: {}, interval: {}",
@@ -214,9 +214,10 @@ void TairBaseClient::onDisconnected() {
         auth_promise_->set_value(TairResult<std::string>::createErr("connect to server fail, disconnected"));
         auth_promise_.reset();
     }
-    if (reconnect_interval_ms_ > 0) {
+    if (reconnect_timer_id_ > 0) {
         LOG_INFO("TairClient stop a timer for black hole detection");
         loop_->cancelTimer(reconnect_timer_id_);
+        reconnect_timer_id_ = -1;
     }
 }
 

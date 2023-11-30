@@ -28,7 +28,7 @@ protected:
     Noncopyable() = default;
     ~Noncopyable() = default;
 
-private:
+public:
     Noncopyable(const Noncopyable &) = delete;
     const Noncopyable &operator=(const Noncopyable &) = delete;
 };

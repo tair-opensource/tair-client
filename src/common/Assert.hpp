@@ -21,8 +21,10 @@
  */
 #pragma once
 
+#include <atomic>
 #include "common/Compiler.hpp"
 
+extern std::atomic<int> tair_runtime_assert_enabled;
 void _runtimeAssert(const char *estr, const char *file, int line);
 #define runtimeAssert(_e) (likely((_e)) ? (void)0 : _runtimeAssert(#_e, __FILE__, __LINE__))
 

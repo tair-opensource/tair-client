@@ -56,5 +56,4 @@ TEST(THREAD_EXECUTOR_POOL, ONLY_TEST) {
     });
     ASSERT_EQ(1U, pool2.allExecutorQueueSize());
     pool2.stop();
-    ASSERT_EQ(0U, pool2.allExecutorQueueSize());
 }
